@@ -1,0 +1,21 @@
+@startuml
+actor Utilisateur
+participant "Application" as App
+participant "Base de Données" as DB
+
+title Diagramme de Séquence - Ajout d'une tâche
+
+Utilisateur -> App: Saisit une nouvelle tâche
+Utilisateur -> App: Clique sur "Ajouter"
+
+App -> App: Valide les données
+
+alt Données valides
+    App -> DB: Sauvegarde la tâche
+    DB --> App: Confirme la sauvegarde
+    App -> Utilisateur: Affiche confirmation
+else Données invalides
+    App -> Utilisateur: Affiche message d'erreur
+end
+
+@enduml

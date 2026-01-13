@@ -1,0 +1,648 @@
+import { useState } from 'react';
+import { StyleSheet, TextInput, TouchableOpacity, View, ScrollView, Alert, Platform } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+import DateTimePicker from '@react-native-community/datetimepicker';
+
+type Task = {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: Date;
+  completed: boolean;
+  category: 'travail' | 'personnel' | 'maison' | 'autres';
+};
+
+type Filter = 'Toutes' | 'Actives' | 'Terminées';
+
+export default function HomeScreen() {
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [tasks, setTasks] = useState<Task[]>([    
+    {
+      id: '1',
+      title: 'Faire les courses',
+      description: 'Lait, œufs, pain',
+      dueDate: new Date(new Date().setHours(14, 30, 0, 0)),
+      completed: true,
+      category: 'maison'
+    },
+    {
+      id: '2',
+      title: 'Réviser React Native',
+      description: 'Préparer la présentation',
+      dueDate: new Date(new Date().setDate(new Date().getDate() + 1)),
+      completed: false,
+      category: 'travail'
+    },
+    {
+      id: '3',
+      title: 'Appeler le médecin',
+      description: '',
+      dueDate: new Date(new Date().setDate(new Date().getDate() - 1)),
+      completed: true,
+      category: 'personnel'
+    }
+  ]);
+  
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<Filter>('Toutes');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [newTask, setNewTask] = useState<Omit<Task, 'id' | 'completed'>>({
+    title: '',
+    description: '',
+    dueDate: new Date(),
+    category: 'autres'
+  });
+
+  const addTask = () => {
+    if (newTask.title.trim() !== '') {
+      if (editingTask) {
+        // Mise à jour d'une tâche existante
+        setTasks(tasks.map(task => 
+          task.id === editingTask.id ? { 
+            ...task, 
+            ...newTask 
+          } : task
+        ));
+        setEditingTask(null);
+      } else {
+        // Ajout d'une nouvelle tâche
+        setTasks([...tasks, { 
+          ...newTask, 
+          id: Date.now().toString(), 
+          completed: false 
+        }]);
+      }
+      setNewTask({
+        title: '',
+        description: '',
+        dueDate: new Date(),
+        category: 'autres'
+      });
+      setIsModalVisible(false);
+    }
+  };
+
+  const handleEditTask = (task: Task) => {
+    setNewTask({
+      title: task.title,
+      description: task.description || '',
+      dueDate: new Date(task.dueDate),
+      category: task.category
+    });
+    setEditingTask(task);
+    setIsModalVisible(true);
+  };
+
+  const handleInputChange = (field: keyof typeof newTask, value: string | Date) => {
+    setNewTask(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const toggleTask = (taskId: string) => {
+    setTasks(tasks.map(task => 
+      task.id === taskId ? { ...task, completed: !task.completed } : task
+    ));
+  };
+
+  const deleteTask = (taskId: string) => {
+    setTasks(tasks.filter(task => task.id !== taskId));
+  };
+
+  const filteredTasks = tasks.filter(task => {
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         task.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesFilter = filter === 'Toutes' || 
+                         (filter === 'Terminées' && task.completed) || 
+                         (filter === 'Actives' && !task.completed);
+    return matchesSearch && matchesFilter;
+  });
+
+  const renderTaskItem = ({ item }: { item: Task }) => (
+    <View style={styles.taskItem}>
+      <TouchableOpacity 
+        style={[styles.checkbox, item.completed && styles.checked]}
+        onPress={() => toggleTask(item.id)}
+      >
+        {item.completed && <IconSymbol name="checkmark" size={16} color="#fff" />}
+      </TouchableOpacity>
+      <View style={styles.taskContent}>
+        <ThemedText style={[styles.taskText, item.completed && styles.completedTask]}>
+          {item.title}
+        </ThemedText>
+        {item.description ? (
+          <ThemedText style={styles.taskDescription}>
+            {item.description}
+          </ThemedText>
+        ) : null}
+        <View style={styles.taskMeta}>
+          <ThemedText style={styles.taskCategory}>
+            {item.category}
+          </ThemedText>
+          <ThemedText style={styles.taskDate}>
+            {item.dueDate.toLocaleDateString()}
+          </ThemedText>
+        </View>
+      </View>
+      <View style={styles.taskActions}>
+        <TouchableOpacity 
+          onPress={() => handleEditTask(item)}
+          style={styles.actionButton}
+        >
+          <IconSymbol name="pencil" size={20} color="#4a90e2" />
+        </TouchableOpacity>
+        <TouchableOpacity 
+          onPress={() => deleteTask(item.id)}
+          style={styles.actionButton}
+        >
+          <IconSymbol name="trash" size={20} color="#ff6b6b" />
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  const renderTaskForm = () => (
+    <View style={styles.inputContainer}>
+      <ThemedText style={styles.modalTitle}>
+        {editingTask ? 'Modifier la Tâche' : 'Nouvelle Tâche'}
+      </ThemedText>
+      <TextInput
+        style={styles.input}
+        placeholder="Titre de la tâche"
+        value={newTask.title}
+        onChangeText={(text) => handleInputChange('title', text)}
+      />
+      <TextInput
+        style={[styles.input, styles.descriptionInput]}
+        placeholder="Description (optionnel)"
+        value={newTask.description}
+        onChangeText={(text) => handleInputChange('description', text)}
+        multiline
+      />
+      <View style={styles.dateCategoryContainer}>
+        <TouchableOpacity 
+          style={styles.dateButton}
+          onPress={() => setShowDatePicker(true)}
+        >
+          <ThemedText>{newTask.dueDate.toLocaleDateString()}</ThemedText>
+          <IconSymbol name="calendar" size={16} color="#666" style={styles.icon} />
+        </TouchableOpacity>
+        
+        <View style={styles.pickerContainer}>
+          <ThemedText>Catégorie: </ThemedText>
+          <View style={styles.picker}>
+            <Picker
+              selectedValue={newTask.category}
+              onValueChange={(itemValue) => handleInputChange('category', itemValue as Task['category'])}
+              dropdownIconColor="#666"
+              mode="dropdown"
+            >
+              <Picker.Item label="Travail" value="travail" />
+              <Picker.Item label="Personnel" value="personnel" />
+              <Picker.Item label="Maison" value="maison" />
+              <Picker.Item label="Autres" value="autres" />
+            </Picker>
+          </View>
+        </View>
+      </View>
+      
+      {showDatePicker && (
+        <DateTimePicker
+          value={newTask.dueDate}
+          mode="date"
+          display="default"
+          onChange={(event, selectedDate) => {
+            setShowDatePicker(false);
+            if (selectedDate) {
+              handleInputChange('dueDate', selectedDate);
+            }
+          }}
+        />
+      )}
+      
+      <TouchableOpacity 
+        style={styles.addButton}
+        onPress={addTask}
+      >
+        <ThemedText style={styles.addButtonText}>
+          {editingTask ? 'Mettre à jour' : 'Ajouter la tâche'}
+        </ThemedText>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderFilterTabs = () => (
+    <View style={styles.filterContainer}>
+      {(['Toutes', 'Actives', 'Terminées'] as Filter[]).map((tab) => (
+        <TouchableOpacity
+          key={tab}
+          style={[styles.filterTab, filter === tab && styles.activeFilterTab]}
+          onPress={() => setFilter(tab)}
+        >
+          <ThemedText style={filter === tab ? styles.activeFilterText : styles.filterText}>
+            {tab}
+          </ThemedText>
+        </TouchableOpacity>
+      ))}
+    </View>
+  );
+
+  return (
+    <ThemedView style={styles.container}>
+      <View style={styles.headerContainer}>
+        <ThemedText type="title" style={styles.title}>
+          Mes Tâches
+        </ThemedText>
+        <TouchableOpacity 
+          style={styles.addButton}
+          onPress={() => {
+            setEditingTask(null);
+            setNewTask({
+              title: '',
+              description: '',
+              dueDate: new Date(),
+              category: 'autres'
+            });
+            setIsModalVisible(true);
+          }}
+        >
+          <ThemedText style={styles.addButtonText}>+ Ajouter</ThemedText>
+        </TouchableOpacity>
+      </View>
+      
+      <View style={styles.searchContainer}>
+        <IconSymbol name="magnifyingglass" size={20} color="#666" style={styles.searchIcon} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Rechercher des tâches..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+        />
+      </View>
+      
+      {renderFilterTabs()}
+      
+      {isModalVisible && (
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            {renderTaskForm()}
+          </View>
+        </View>
+      )}
+      
+      <ScrollView style={styles.taskList}>
+        {filteredTasks.length > 0 ? (
+          filteredTasks.map((task) => (
+            <View key={task.id} style={styles.taskItem}>
+              <TouchableOpacity 
+                style={[styles.checkbox, task.completed && styles.checked]}
+                onPress={() => toggleTask(task.id)}
+              >
+                {task.completed && <IconSymbol name="checkmark" size={16} color="#fff" />}
+              </TouchableOpacity>
+              <View style={styles.taskContent}>
+                <ThemedText style={[styles.taskText, task.completed && styles.completedTask]}>
+                  {task.title}
+                </ThemedText>
+                {task.description ? (
+                  <ThemedText style={styles.taskDescription}>
+                    {task.description}
+                  </ThemedText>
+                ) : null}
+                <View style={styles.taskMeta}>
+                  <ThemedText style={styles.taskCategory}>
+                    {task.category}
+                  </ThemedText>
+                  <ThemedText style={styles.taskDate}>
+                    {task.dueDate.toLocaleDateString()}
+                  </ThemedText>
+                </View>
+              </View>
+              <View style={styles.taskActions}>
+                <TouchableOpacity 
+                  onPress={() => handleEditTask(task)}
+                  style={styles.actionButton}
+                >
+                  <IconSymbol name="pencil" size={20} color="#4a90e2" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => deleteTask(task.id)}
+                  style={styles.actionButton}
+                >
+                  <IconSymbol name="trash" size={20} color="#ff6b6b" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        ) : (
+          <ThemedText style={styles.emptyState}>
+            Aucune tâche trouvée
+          </ThemedText>
+        )}
+      </ScrollView>
+    </ThemedView>
+  );
+  </ScrollView>
+</ThemedView>
+);
+          </ThemedText>
+        )}
+      </ScrollView>
+    </ThemedView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+  },
+  searchIcon: {
+    marginRight: 8,
+    color: '#666',
+  },
+  searchInput: {
+    flex: 1,
+    height: 40,
+    fontSize: 16,
+  },
+  filterContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+    padding: 4,
+  },
+  filterTab: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeFilterTab: {
+    backgroundColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  filterText: {
+    color: '#666',
+  },
+  activeFilterText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  taskList: {
+    flex: 1,
+    marginBottom: 16,
+  },
+  emptyState: {
+    textAlign: 'center',
+    marginTop: 40,
+    color: '#666',
+  },
+  taskItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    marginBottom: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  taskActions: {
+    flexDirection: 'row',
+    marginLeft: 8,
+  },
+  actionButton: {
+    marginLeft: 12,
+    padding: 4,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checked: {
+    backgroundColor: '#007AFF',
+    borderColor: '#007AFF',
+  },
+  taskContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  taskText: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  completedTask: {
+    textDecorationLine: 'line-through',
+    color: '#999',
+  },
+  taskDescription: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  taskMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 4,
+  },
+  taskCategory: {
+    fontSize: 12,
+    color: '#fff',
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  taskDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  inputContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 12,
+    fontSize: 16,
+  },
+  descriptionInput: {
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  dateCategoryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  dateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    flex: 1,
+    marginRight: 8,
+    justifyContent: 'space-between',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    flex: 1,
+  },
+  picker: {
+    flex: 1,
+    marginLeft: 8,
+    ...Platform.select({
+      ios: {
+        backgroundColor: '#f0f0f0',
+        borderRadius: 8,
+        paddingHorizontal: 8,
+      },
+      android: {
+        backgroundColor: 'transparent',
+      },
+    }),
+  },
+  icon: {
+    marginLeft: 8,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  modalOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  modalContent: {
+    width: '90%',
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checked: {
+    backgroundColor: '#007AFF',
+  },
+  taskText: {
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  completedTask: {
+    textDecorationLine: 'line-through',
+    color: '#999',
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 8,
+    borderRadius: 6,
+    backgroundColor: '#f5f5f5',
+  },
+  deleteButton: {
+    backgroundColor: '#ffebee',
+  },
+  editButton: {
+    backgroundColor: '#e3f2fd',
+  },
+  actionButtonText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  deleteButtonText: {
+    color: '#d32f2f',
+  },
+  editButtonText: {
+    color: '#1976d2',
+  },
+});

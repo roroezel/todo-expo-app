@@ -1,0 +1,64 @@
+@startuml
+
+start
+:Utilisateur ouvre l'application;
+
+if (Utilisateur connecté ?) then (Oui)
+  :Afficher la liste des tâches;
+  
+  repeat
+    :Sélectionner une action;
+    
+    if (Action == "Ajouter tâche") then (Oui)
+      :Afficher le formulaire d'ajout;
+      :Saisir les détails de la tâche;
+      :Valider le formulaire;
+      
+      if (Données valides ?) then (Oui)
+        :Enregistrer la tâche;
+        :Afficher message de succès;
+      else (Non)
+        :Afficher les erreurs;
+      endif
+      
+    elseif (Action == "Modifier tâche") then (Oui)
+      :Sélectionner la tâche à modifier;
+      :Modifier les champs nécessaires;
+      :Enregistrer les modifications;
+      :Afficher message de succès;
+      
+    elseif (Action == "Supprimer tâche") then (Oui)
+      :Sélectionner la tâche à supprimer;
+      :Confirmer la suppression;
+      :Supprimer la tâche;
+      :Afficher message de confirmation;
+      
+    elseif (Action == "Filtrer tâches") then (Oui)
+      :Sélectionner les critères de filtrage;
+      :Appliquer les filtres;
+      :Afficher les résultats filtrés;
+      
+    endif
+    
+  repeat while (Continuer à utiliser l'application ?) is (Oui)
+  
+  :Se déconnecter;
+  
+else (Non)
+  :Afficher l'écran de connexion;
+  :Saisir les identifiants;
+  :Valider la connexion;
+  
+  if (Identifiants valides ?) then (Oui)
+    :Accorder l'accès;
+  else (Non)
+    :Afficher message d'erreur;
+    stop
+  endif
+  
+  :Rediriger vers la liste des tâches;
+endif
+
+stop
+
+@enduml

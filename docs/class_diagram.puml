@@ -1,0 +1,57 @@
+@startuml
+
+class Tâche {
+  -id: string
+  -titre: string
+  -description: string
+  -dateÉchéance: Date
+  -estTerminée: boolean
+  -priorité: Priorité
+  +ajouterTâche()
+  +modifierTâche()
+  +supprimerTâche()
+  +changerStatut()
+}
+
+class Utilisateur {
+  -id: string
+  -nom: string
+  -email: string
+  -motDePasse: string
+  +seConnecter()
+  +seDéconnecter()
+  +créerTâche()
+  +voirTâches()
+}
+
+class GestionTâches {
+  -listeTâches: Tâche[]
+  +ajouterTâche(tâche: Tâche)
+  +supprimerTâche(id: string)
+  +modifierTâche(id: string, nouvellesDonnées: object)
+  +filtrerTâches(filtre: object): Tâche[]
+  +trierTâches(critère: string)
+}
+
+class FiltreTâches {
+  -statut: string
+  -priorité: string
+  -dateDébut: Date
+  -dateFin: Date
+  +appliquerFiltre(tâches: Tâche[]): Tâche[]
+}
+
+enum Priorité {
+  FAIBLE
+  MOYENNE
+  HAUTE
+  URGENTE
+}
+
+' Relations
+Utilisateur "1" -- "*" Tâche : crée >
+GestionTâches "1" -- "*" Tâche : contient >
+GestionTâches "1" -- "1" FiltreTâches : utilise >
+Tâche "1" -- "1" Priorité : a une >
+
+@enduml

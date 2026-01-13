@@ -1,0 +1,25 @@
+@startuml
+left to right direction
+skinparam actorStyle awesome
+
+' Acteurs
+actor Utilisateur as user
+
+' Cas d'utilisation
+rectangle "Système de Gestion des Tâches" {
+  usecase "Ajouter une tâche" as UC1
+  usecase "Modifier une tâche" as UC2
+  usecase "Marquer comme terminée" as UC3
+  usecase "Supprimer une tâche" as UC4
+  usecase "Voir la liste des tâches" as UC5
+  usecase "Filtrer les tâches" as UC6
+}
+
+' Relations
+user --> UC1
+user --> UC2
+user --> UC3
+user --> UC4
+user --> UC5
+user --> UC6
+@enduml
